@@ -1,0 +1,47 @@
+sudo: required
+dist: trusty
+before_install:
+- echo "before_installi"
+- sudo apt-get update
+- sudo apt-get install build-essential checkinstall
+- sudo apt-get install libreadline-gplv2-dev libncursesw5-dev libssl-dev libsqlite3-dev
+  tk-dev libgdbm-dev libc6-dev libbz2-dev
+- sudo apt-get install python2.7 python-pip
+- sudo apt-get install jq
+- chmod 0700 ./bin/*
+- ./bin/aws_config.sh
+- sudo pip install awscli
+- sudo pip install requests[security]
+- mkdir ssh/
+- aws s3 cp s3://meyrickblog-tfstate/templates/id_rsa ssh/
+- chmod 0600 ssh/id_rsa
+install:
+- sudo pip install ansible
+- sudo pip install boto3
+- sudo pip install botocore
+jobs:
+  include:
+  - stage: RunAnsible
+    before_script:
+    - echo 'before_script'
+    script:
+    - ssh-keyscan -H $(aws ec2 describe-instances --filters "Name=tag:Name,Values=wp_webdb"
+      "Name=instance-state-name,Values=running"| jq --raw-output .Reservations[].Instances[].PublicIpAddress)
+      >> ~/.ssh/known_hosts
+    # - aws s3 cp s3://meyrickblog-tfsate/artifacts/aws_hosts .
+    - ansible-playbook -i aws_hosts create.yml --key-file ssh/id_rsa
+notifications:
+  email:
+    recipients:
+    - luke@meyrick.eu
+    on_success: always
+    on_failure: always
+cache:
+  directories:
+  - ${HOME}/bin
+env:
+  global:
+  - TF_VERSION="0.11.8"
+  - TF_ENV="prod"
+  - secure: tYdb7flrLODY+6dU+BkAX2Rto3QNRMXdiwEmej/SjqLF09/FNojIgDhC7SSBkxTO1iB/2prz8SZb6VOD8zIDec26uNi6BMKtaBvJPmsg5D9Go52XPxuVSuPUoaI9kdYiSUX02z7TPNxwsnVAqjwDGUIIYtbAFM4qIhGiw749d3g3sz7CZOCpDiuXh7kL80UHLQNAOQKJE3/fCCh/zfvly3Mil+btm11KUcTJ3GQk3YxUnPyhbkEJ84Lph119b3ecfgTq/ZiYBsf1Mknet+i4EMLecZa0FGEm3uuQdMtIGpr3eU4/fHbvshHh3AG9rIw4CqGLnSA5yqmYFFssM38rSwSpbkSVasiVK5I+5eVMERTDe9ob3/Og4Au1muoktGlE9Amp0l9kpklOJtCHXY03TjNKbpWP996qWfgnH4iDmrGZvyp2U145gT6RP3gOkRq5UKivOzWB0xoVj4THJ/qCwryVlsK8ZCkZQ1/qhpeEHMVq+bfwD+bzx2BXQfPKZlmC9PrztR6D1eRXYDd6oAaJJG3kcHfwGW9ogZ33FSTu3vLUqv1Nf8DdeQIe9pe4pRMmQZYH2fuq12FZyWiw+fxrno+vQHzgpiXdROcUFf0zq2S65Rx8RxZnzsBAqHnpF/fJrUbKjF0EmE63ujDmqOqTC9LRBl5Zc+48Yyfox6tc7g0=
+  - secure: pKNbjG99COEpCHk8ze1Ay3Rlw0UY32E6/MWGxHqONfquAM5ZkH1Lt+k3MFnZ8iJaQcEiyDDVOs64EFskAXjQVu2DJxvldrAyJPeL6XrJzHCN55vbNYs+T99+XU4exISkcpSTTNbW25heZEV3bQw3dfCdRiIEPfQC35uwFJM9ec6hfRgBbl/wyQ4S/XxdB+kYonZVnv9CpYBvhbAG4T0XPfbTiHTQKIWPnyGshJYce9+XmH3WhimmRrrl1/sqILtSGB8zBZn8E7Si/gqpdGidiY5Ee7Ll8ytsi5RoMXi7Kaw09bSfdGS4IxRhvAbmnqBn6xKF2/ga4JN+f59CIEaZdZ+MvI/5ZY68W+UzJ72sWqs8ktSgpgtr5ozyMJ2U5Tbbfi5aW6Pr/yzkC+oSY8ayTD7/e/OWGso6/PM4sgrytbpbXr+BIrMmTG1+TyFsJ9tQYvbNP6evLI6shQkchKAH3zl0Zx+pjMEyuuiEnjF8lqP0FaAXQb5gyDXvGghMUCZmsHxP8vkUzeyUNyNp/NOMHD6NUurTC3xZynjq/QF1xXXZMKba80JL/MxLHFy1Qtf6MBYMp1T96zbq39fxVmLRQwOD8dQ3D/rb8/bnTKgIFyBFGAXI9SU8ATtqgyfL8jUBky2aFW+ilRj20mLGSeqxXrioaBf9AtMQgGEVKT/PriY=
