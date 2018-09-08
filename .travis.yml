@@ -28,6 +28,7 @@ jobs:
     - ssh-keyscan -H $(aws ec2 describe-instances --filters "Name=tag:Name,Values=wp_webdb"
       "Name=instance-state-name,Values=running"| jq --raw-output .Reservations[].Instances[].PublicIpAddress)
       >> ~/.ssh/known_hosts
+    - aws s3 cp s3://meyrickblog-tfstate/artifacts/aws_hosts .
     - ansible-playbook -i aws_hosts create.yml --key-file ssh/id_rsa
 notifications:
   email:
